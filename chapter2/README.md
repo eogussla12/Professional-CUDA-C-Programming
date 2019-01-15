@@ -1,8 +1,6 @@
-Professional-CUDA-C-Programming
+# Professional-CUDA-C-Programming chapter2
 
-chapter2
-
-#Defining an error-handling macro to wrap all CUDA API calls simplifi es the error checking
+# Defining an error-handling macro to wrap all CUDA API calls simplifi es the error checking
 process:
 
 #define CHECK(call) 
