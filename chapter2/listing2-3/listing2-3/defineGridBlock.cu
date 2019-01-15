@@ -3,6 +3,7 @@
 
 
 int main(int argc, char **argv) {
+
 	// define total data elements
 	int nElem = 1024;
 
