@@ -1,1 +1,1 @@
-Host-based array summation
+# Host-based array summation
