@@ -1,4 +1,4 @@
-Define grid and block dimensions on the host
+# Define grid and block dimensions on the host
 
 	--------output--------
 	grid.x 1 block.x 1024
