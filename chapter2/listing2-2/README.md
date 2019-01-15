@@ -1,4 +1,4 @@
-Check grid and block indices and dimensions
+# Check grid and block indices and dimensions
 	
 	--------------------output------------------------------------------------
 	grid.x 2 grid.y 1 grid.z 1
