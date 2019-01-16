@@ -1,11 +1,15 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
+#include "sysTimes.h"
+
 
 /*
  * This example demonstrates a simple vector sum on the GPU and on the host.
  * sumArraysOnGPU splits the work of the vector sum across CUDA threads on the
  * GPU. Only a single thread block is used in this small case, for simplicity.
  * sumArraysOnHost sequentially iterates through vector elements on the host.
+ * This version of sumArrays adds host timers to measure GPU and CPU
+ * performance.
  */
 
 #define CHECK(call) \
@@ -18,6 +22,7 @@ printf("code:%d, reason: %s\n", error, cudaGetErrorString(error)); \
 exit(1); \
 } \
 }
+
 
 void checkResult(float *hostRef, float *gpuRef, const int N)
 {
@@ -41,7 +46,6 @@ void checkResult(float *hostRef, float *gpuRef, const int N)
 	return;
 }
 
-
 void initialData(float *ip, int size)
 {
 	// generate different seed for random number
@@ -56,20 +60,25 @@ void initialData(float *ip, int size)
 	return;
 }
 
-
 void sumArraysOnHost(float *A, float *B, float *C, const int N)
 {
 	for (int idx = 0; idx < N; idx++)
+	{
 		C[idx] = A[idx] + B[idx];
+	}
 }
-
 __global__ void sumArraysOnGPU(float *A, float *B, float *C, const int N)
 {
-	int i = blockIdx.x;
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
 
 	if (i < N) C[i] = A[i] + B[i];
 }
 
+double cpuSecond() {
+	struct timeval tp;
+	gettimeofday(&tp, NULL);
+	return ((double)tp.tv_sec + (double)tp.tv_usec*1.e-6);
+}
 
 int main(int argc, char **argv)
 {
@@ -77,10 +86,13 @@ int main(int argc, char **argv)
 
 	// set up device
 	int dev = 0;
+	cudaDeviceProp deviceProp;
+	CHECK(cudaGetDeviceProperties(&deviceProp, dev));
+	printf("Using Device %d: %s\n", dev, deviceProp.name);
 	CHECK(cudaSetDevice(dev));
 
 	// set up data size of vectors
-	int nElem = 1 << 5;
+	int nElem = 1 << 24;
 	printf("Vector size %d\n", nElem);
 
 	// malloc host memory
@@ -92,12 +104,22 @@ int main(int argc, char **argv)
 	hostRef = (float *)malloc(nBytes);
 	gpuRef = (float *)malloc(nBytes);
 
+	double iStart, iElaps;
+
 	// initialize data at host side
+	iStart = cpuSecond();
 	initialData(h_A, nElem);
 	initialData(h_B, nElem);
-
+	iElaps = cpuSecond() - iStart;
+	printf("initialData Time elapsed %f sec\n", iElaps);
 	memset(hostRef, 0, nBytes);
 	memset(gpuRef, 0, nBytes);
+
+	// add vector at host side for result checks
+	iStart = cpuSecond();
+	sumArraysOnHost(h_A, h_B, hostRef, nElem);
+	iElaps = cpuSecond() - iStart;
+	printf("sumArraysOnHost Time elapsed %f sec\n", iElaps);
 
 	// malloc device global memory
 	float *d_A, *d_B, *d_C;
@@ -111,17 +133,22 @@ int main(int argc, char **argv)
 	CHECK(cudaMemcpy(d_C, gpuRef, nBytes, cudaMemcpyHostToDevice));
 
 	// invoke kernel at host side
-	dim3 block(1);
-	dim3 grid(nElem);
+	int iLen = 512;
+	dim3 block(iLen);
+	dim3 grid((nElem + block.x - 1) / block.x);
 
+	iStart = cpuSecond();
 	sumArraysOnGPU << <grid, block >> > (d_A, d_B, d_C, nElem);
-	printf("Execution configure <<<%d, %d>>>\n", grid.x, block.x);
+	CHECK(cudaDeviceSynchronize());
+	iElaps = cpuSecond() - iStart;
+	printf("sumArraysOnGPU <<<  %d, %d  >>>  Time elapsed %f sec\n", grid.x,
+		block.x, iElaps);
+
+	// check kernel error
+	CHECK(cudaGetLastError());
 
 	// copy kernel result back to host side
 	CHECK(cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost));
-
-	// add vector at host side for result checks
-	sumArraysOnHost(h_A, h_B, hostRef, nElem);
 
 	// check device results
 	checkResult(hostRef, gpuRef, nElem);
@@ -137,6 +164,5 @@ int main(int argc, char **argv)
 	free(hostRef);
 	free(gpuRef);
 
-	CHECK(cudaDeviceReset());
 	return(0);
 }
