@@ -116,6 +116,7 @@ int main(int argc, char **argv)
 	memset(gpuRef, 0, nBytes);
 
 	// add vector at host side for result checks
+
 	iStart = cpuSecond();
 	sumArraysOnHost(h_A, h_B, hostRef, nElem);
 	iElaps = cpuSecond() - iStart;
@@ -133,7 +134,7 @@ int main(int argc, char **argv)
 	CHECK(cudaMemcpy(d_C, gpuRef, nBytes, cudaMemcpyHostToDevice));
 
 	// invoke kernel at host side
-	int iLen = 512;
+	int iLen = 1024;
 	dim3 block(iLen);
 	dim3 grid((nElem + block.x - 1) / block.x);
 
