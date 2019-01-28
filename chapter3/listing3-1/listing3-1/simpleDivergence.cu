@@ -139,7 +139,7 @@ int main(int argc, char **argv)
 
 	if (argc > 2) size = atoi(argv[2]);
 
-	printf("Data size %d ", size);
+-	printf("Data size %d ", size);
 
 	// set up execution configuration
 	dim3 block(blocksize, 1);
